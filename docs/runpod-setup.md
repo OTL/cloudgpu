@@ -52,16 +52,27 @@ RTX 4090 の在庫があるリージョンを確認してから戻ってくる�
 curl -fsSL https://raw.githubusercontent.com/OTL/cloudgpu/main/scripts/provision.sh | bash
 ```
 
-## 3. ComfyUI に繋ぐ
+## 3. ComfyUI を起動して繋ぐ
 
-Pod のカードの `Connect` → HTTP Service の **8188** を開く。
-`https://<pod-id>-8188.proxy.runpod.net` のような URL になる。
+`provision.sh` は導入までしか行わない。起動は起動スクリプトから行う。
 
-初回はコンテナ起動 + プロビジョニングで 5〜15 分かかる。ログは
-`Connect` → `Logs`、あるいは web terminal で確認できる。
+```bash
+bash /workspace/cloudgpu/scripts/start-comfyui.sh
+```
 
-> プロビジョニング中に ComfyUI が先に起動していると、新しく落としたモデルが
-> ドロップダウンに出ないことがある。その場合は ComfyUI を再起動するか、
+tmux セッション `comfy` の中で立ち上がり、接続先の URL が表示される。
+`https://<pod-id>-8188.proxy.runpod.net` の形になる。ログを見るなら
+`tmux attach -t comfy`（抜けるのは `Ctrl+B` → `D`）。
+
+このスクリプトは、素で `python main.py` を叩くと必ず踏む 3 つの罠を先に片付ける。
+
+| 罠 | 症状 | スクリプトの対処 |
+| --- | --- | --- |
+| DNS が壊れて上がる | `Temporary failure in name resolution` | `/etc/resolv.conf` を補修 |
+| コンテナ再生成で依存が消える | `ModuleNotFoundError: No module named 'sqlalchemy'` | venv を `/workspace/venv` に置く |
+| ComfyUI の CSRF 対策 | ブラウザで **403** | `--enable-cors-header` を付けて起動 |
+
+> 新しく落としたモデルがドロップダウンに出ないときは、ComfyUI を再起動するか、
 > ブラウザで `R` キー（Refresh Node Definitions）を押す。
 
 ## 4. 最初の 1 枚
@@ -82,5 +93,13 @@ Pod のカードの `Connect` → HTTP Service の **8188** を開く。
 回収したら Pod を **Terminate**。Stop ではない。理由は
 [cost-control.md](cost-control.md) を参照。
 
-`/workspace` 配下（モデル、カスタムノード、ワークフロー JSON）は Network Volume に
-残るので、次回は同じ Volume を指定して Pod を作り直せばそのまま再開できる。
+`/workspace` 配下（モデル、venv、カスタムノード、ワークフロー JSON）は Network Volume
+に残るので、次回は同じ Volume を指定して Pod を作り直し、`start-comfyui.sh` を叩けば
+そのまま再開できる。
+
+## 注意: Edit Pod はコンテナを作り直す
+
+ポートや環境変数を変更して保存すると、**コンテナが作り直される**。`/workspace` は
+無事だが、コンテナ側に入れたもの（`pip install` した先が venv でない場合、
+`/etc/resolv.conf`、apt で入れたパッケージ）は全部消える。ポートは最初から
+`8188` を登録しておき、あとから編集しないのが楽。
