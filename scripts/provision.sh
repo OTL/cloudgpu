@@ -22,6 +22,12 @@ MODEL_SET="${MODEL_SET:-starter}"
 SKIP_NODES="${SKIP_NODES:-0}"
 VENV_DIR="${VENV_DIR:-/workspace/venv}"
 
+# curl | bash で実行されると BASH_SOURCE が無いので、その場合は空にしておく
+SELF_DIR=""
+if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
+    SELF_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+fi
+
 log() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m[warn] %s\033[0m\n' "$*" >&2; }
 die() { printf '\033[1;31m[error] %s\033[0m\n' "$*" >&2; exit 1; }
@@ -236,13 +242,19 @@ main() {
 
     download_models
 
+    # リポジトリを clone して実行した場合は短いコマンド名も置いていく
+    if [[ -n "$SELF_DIR" && -x "$SELF_DIR/bootstrap.sh" ]]; then
+        bash "$SELF_DIR/bootstrap.sh" >/dev/null
+        log "短縮コマンドを /workspace/bin に置いた"
+    fi
+
     log "完了"
     echo "  ComfyUI     : $COMFYUI_DIR"
     echo "  checkpoints : $(ls -1 "$MODELS_DIR/checkpoints" 2>/dev/null | tr '\n' ' ')"
     echo "  ディスク使用 : $(du -sh "$MODELS_DIR" 2>/dev/null | cut -f1)"
     echo
-    echo "起動は start-comfyui.sh から行うこと（CORS と DNS の面倒を見てくれる）:"
-    echo "  bash /workspace/cloudgpu/scripts/start-comfyui.sh"
+    echo "起動はこれ（CORS と DNS の面倒を見てくれる）:"
+    echo "  /workspace/bin/comfy"
     echo
     echo "既に ComfyUI が動いている場合、新しいノード / モデルを認識させるには"
     echo "一度再起動すること。"
