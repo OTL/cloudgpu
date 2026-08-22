@@ -1,5 +1,75 @@
 # よくある詰まりどころ
 
+実際に RunPod で一通り立ち上げたときに踏んだ順に並べてある。上 4 つは
+`start-comfyui.sh` が自動で面倒を見るので、手で `python main.py` を叩いたときだけ関係する。
+
+## ブラウザで開くと 403（アクセスが拒否されました）
+
+**ComfyUI 自身が返している。** RunPod のプロキシや権限の問題ではない。
+
+ComfyUI の `server.py` には CSRF 対策のミドルウェアがあり、
+`Sec-Fetch-Site: cross-site` が付いたリクエストを問答無用で 403 にする。
+別タブ（RunPod のコンソールなど）のリンクから `proxy.runpod.net` に飛ぶと
+ブラウザがこのヘッダを付けるため、これに該当する。本文が空の 403 なので
+ブラウザ側の権限エラーに見えてしまい、原因が分かりにくい。
+
+`--enable-cors-header` を付けて起動すると、このミドルウェアの代わりに
+CORS ミドルウェアが入り、判定自体が無くなる。
+
+```bash
+/workspace/venv/bin/python main.py --listen 0.0.0.0 --port 8188 \
+  --enable-cors-header "https://<pod-id>-8188.proxy.runpod.net"
+```
+
+Pod の中から挙動を確認できる。修正前は 403、修正後は 200 が返る。
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H 'Sec-Fetch-Site: cross-site' http://127.0.0.1:8188/
+```
+
+## `ModuleNotFoundError`（前は動いていたのに）
+
+Pod を編集・再起動するとコンテナが作り直され、`pip install` したものが消える。
+永続するのは `/workspace` だけ。ホスト名（`root@xxxxxxxx`）が変わっていたら
+コンテナが別物になった証拠。
+
+venv を Network Volume 側に作れば再発しない。
+
+```bash
+python -m venv --system-site-packages /workspace/venv
+/workspace/venv/bin/python -m pip install -r /workspace/ComfyUI/requirements.txt
+```
+
+`--system-site-packages` が要点。torch はコンテナイメージに CUDA 版が入っているので、
+これを付けておけば venv 側に数 GB を再ダウンロードせずに済む。
+
+## `Temporary failure in name resolution`
+
+コンテナが作り直されたあと `/etc/resolv.conf` が空で上がってくることがある。
+
+```bash
+cat /etc/resolv.conf
+getent hosts pypi.org
+
+printf 'nameserver 8.8.8.8\nnameserver 1.1.1.1\n' > /etc/resolv.conf
+```
+
+書き込めない場合はコンソールから Stop → Start。それでも直らないならその Pod は
+捨てて作り直したほうが早い（`/workspace` は引き継げる）。
+
+## `Installing collected packages:` から進まない
+
+固まっているように見えて、たいてい進んでいる。venv が Network Volume 上にあるため
+wheel の展開が遅い。**5〜15 分**かかる。別のシェルで確認できる。
+
+```bash
+du -sh /workspace/venv
+```
+
+数字が増えていれば正常。まったく変わらないなら `Ctrl+C` して同じコマンドを再実行する。
+ダウンロード済みの wheel は pip のキャッシュに残っているので 2 回目は展開だけになる。
+
 ## 生成した絵がノイズ / 崩れる（FLUX schnell）
 
 steps と cfg がデフォルトのまま。**steps=4, cfg=1.0** にする。
@@ -73,6 +143,19 @@ RunPod の SSH は 2 種類ある。
 
 想定内。Network Volume 上のデータは残っているので、同じ Volume で Pod を
 作り直せば続きから再開できる。生成中だったジョブのキューは消える。
+
+## raw.githubusercontent.com が 404 を返す
+
+このリポジトリを private のままにしていると、`raw.githubusercontent.com` は
+認証なしのリクエストに 404 を返す。public にするか、トークンを付けて取得する。
+
+```bash
+curl -fsSL -H "Authorization: token <PAT>" \
+  https://raw.githubusercontent.com/OTL/cloudgpu/main/scripts/provision.sh | bash
+```
+
+RunPod の `PROVISIONING_SCRIPT` 環境変数を使う場合は public でなければならない。
+RunPod 側が URL を叩くだけで、認証を挟む手段がないため。
 
 ## モデルの URL が 404 になる
 

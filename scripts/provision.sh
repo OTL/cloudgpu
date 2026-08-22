@@ -10,6 +10,8 @@
 #
 # 環境変数:
 #   COMFYUI_DIR   ComfyUI のパス（未設定なら自動検出）
+#   VENV_DIR      venv のパス (default: /workspace/venv)
+#   SKIP_DEPS     1 にすると venv の作成と依存の導入をスキップ
 #   MODEL_SET     starter | sdxl | flux-dev | all | none   (default: starter)
 #   HF_TOKEN      Hugging Face のトークン（gated モデルを取る場合のみ）
 #   SKIP_NODES    1 にするとカスタムノードの導入をスキップ
@@ -18,10 +20,30 @@ set -euo pipefail
 
 MODEL_SET="${MODEL_SET:-starter}"
 SKIP_NODES="${SKIP_NODES:-0}"
+VENV_DIR="${VENV_DIR:-/workspace/venv}"
 
 log() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m[warn] %s\033[0m\n' "$*" >&2; }
 die() { printf '\033[1;31m[error] %s\033[0m\n' "$*" >&2; exit 1; }
+
+# --------------------------------------------------------------------------
+# DNS
+#
+# コンテナ再生成のあと /etc/resolv.conf が空で上がってくることがある。その状態だと
+# git も pip も名前解決に失敗する。start-comfyui.sh にも同じ関数があるが、この
+# スクリプトは curl | bash で単体実行されるため意図的に自己完結させている。
+# --------------------------------------------------------------------------
+ensure_dns() {
+    getent hosts pypi.org >/dev/null 2>&1 && return 0
+    warn "名前解決に失敗している。/etc/resolv.conf を補修する。"
+    printf 'nameserver 8.8.8.8\nnameserver 1.1.1.1\n' > /etc/resolv.conf 2>/dev/null \
+        || die "/etc/resolv.conf に書き込めない。Pod を再起動するか作り直すこと。"
+    getent hosts pypi.org >/dev/null 2>&1 \
+        || die "DNS を直せなかった。この Pod は捨てて作り直すのが早い。"
+    log "DNS 復旧"
+}
+
+ensure_dns
 
 # --------------------------------------------------------------------------
 # ComfyUI の場所を決める
@@ -54,7 +76,6 @@ if [[ ! -f "$COMFYUI_DIR/main.py" ]]; then
     log "ComfyUI が見つからないので $COMFYUI_DIR に clone する"
     mkdir -p "$(dirname "$COMFYUI_DIR")"
     git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git "$COMFYUI_DIR"
-    python -m pip install --no-cache-dir -r "$COMFYUI_DIR/requirements.txt"
 fi
 
 case "$COMFYUI_DIR" in
@@ -68,6 +89,31 @@ MODELS_DIR="$COMFYUI_DIR/models"
 NODES_DIR="$COMFYUI_DIR/custom_nodes"
 mkdir -p "$NODES_DIR" \
     "$MODELS_DIR"/{checkpoints,vae,loras,controlnet,upscale_models,clip,unet,clip_vision}
+
+# --------------------------------------------------------------------------
+# venv
+#
+# コンテナのファイルシステムは Pod を編集・再生成すると消える。site-packages に
+# 入れた依存も道連れになるので、venv は Network Volume 側に置く。torch は
+# コンテナイメージの CUDA 版を --system-site-packages で共有する（venv に入れ直すと
+# 数 GB のダウンロードになる）。
+# --------------------------------------------------------------------------
+SKIP_DEPS="${SKIP_DEPS:-0}"
+
+if [[ "$SKIP_DEPS" == "1" ]]; then
+    # モデルを足すだけのときは venv に触らない（download-models.sh がこの経路）
+    PY_BIN="$VENV_DIR/bin/python"
+    [[ -x "$PY_BIN" ]] || PY_BIN="$(command -v python)"
+else
+    if [[ ! -x "$VENV_DIR/bin/python" ]]; then
+        log "venv を作る: $VENV_DIR"
+        python -m venv --system-site-packages "$VENV_DIR"
+    fi
+    PY_BIN="$VENV_DIR/bin/python"
+
+    log "ComfyUI の依存を導入する（Network Volume 上なので展開に 5〜15 分かかる）"
+    "$PY_BIN" -m pip install --no-input -r "$COMFYUI_DIR/requirements.txt"
+fi
 
 # --------------------------------------------------------------------------
 # ダウンローダ
@@ -135,7 +181,7 @@ install_nodes() {
         log "custom node: $name"
         git clone --depth 1 "$repo" "$dir" || { warn "clone 失敗: $name"; continue; }
         if [[ -f "$dir/requirements.txt" ]]; then
-            python -m pip install --no-cache-dir -r "$dir/requirements.txt" \
+            "$PY_BIN" -m pip install --no-input -r "$dir/requirements.txt" \
                 || warn "依存の導入に失敗: $name"
         fi
     done
@@ -195,8 +241,11 @@ main() {
     echo "  checkpoints : $(ls -1 "$MODELS_DIR/checkpoints" 2>/dev/null | tr '\n' ' ')"
     echo "  ディスク使用 : $(du -sh "$MODELS_DIR" 2>/dev/null | cut -f1)"
     echo
-    echo "テンプレート付属の ComfyUI を使っている場合は、新しいノード / モデルを"
-    echo "認識させるために ComfyUI を一度再起動すること。"
+    echo "起動は start-comfyui.sh から行うこと（CORS と DNS の面倒を見てくれる）:"
+    echo "  bash /workspace/cloudgpu/scripts/start-comfyui.sh"
+    echo
+    echo "既に ComfyUI が動いている場合、新しいノード / モデルを認識させるには"
+    echo "一度再起動すること。"
 }
 
 main "$@"

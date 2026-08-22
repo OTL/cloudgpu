@@ -6,8 +6,10 @@ Network Volume に相乗りさせる前提で構成している。
 
 ## 設計方針
 
-1. **モデルは Network Volume に置く。** Pod のディスクには置かない。
-   置くと起動のたびに数十 GB を再ダウンロードすることになり、その待ち時間も GPU 課金対象。
+1. **モデルも Python の依存も Network Volume に置く。** Pod のディスクには置かない。
+   モデルを置くと起動のたびに数十 GB を再ダウンロードすることになり、その待ち時間も
+   GPU 課金対象。pip パッケージも同じで、コンテナは Pod を編集すると作り直されて
+   site-packages ごと消える。だから venv は `/workspace/venv` に置く。
 2. **Pod は stop せず terminate する。** 停止中の Pod ボリュームは Network Volume より
    数倍高い。永続させたいものは全部 `/workspace`（= Network Volume）に寄せる。
 3. **プロビジョニングはスクリプト 1 本に集約する。** Pod を作り直すのが怖くなくなるほど、
@@ -34,8 +36,14 @@ Network Volume に相乗りさせる前提で構成している。
    MODEL_SET=starter
    ```
 
-3. ブラウザで ComfyUI（ポート 8188）を開く
-4. 終わったら成果物を回収して **terminate**
+3. Pod の web terminal で起動する
+
+   ```bash
+   bash /workspace/cloudgpu/scripts/start-comfyui.sh
+   ```
+
+4. 表示された `https://<pod-id>-8188.proxy.runpod.net` を開く
+5. 終わったら成果物を回収して **terminate**
 
 テンプレートが `PROVISIONING_SCRIPT` に対応していない場合は、Pod の web terminal で
 直接叩いてもよい。
@@ -57,6 +65,7 @@ curl -fsSL https://raw.githubusercontent.com/OTL/cloudgpu/main/scripts/provision
 
 | ファイル | 内容 |
 | --- | --- |
-| [scripts/provision.sh](scripts/provision.sh) | Pod 起動時のカスタムノード + モデル取得 |
+| [scripts/provision.sh](scripts/provision.sh) | 初回セットアップ（venv、カスタムノード、モデル取得） |
+| [scripts/start-comfyui.sh](scripts/start-comfyui.sh) | ComfyUI の起動（DNS 補修、依存の確認、CORS 対応込み） |
 | [scripts/download-models.sh](scripts/download-models.sh) | モデルだけを個別に追加取得 |
 | [scripts/fetch-outputs.sh](scripts/fetch-outputs.sh) | 生成物をローカルへ回収 |

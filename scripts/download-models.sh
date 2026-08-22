@@ -28,7 +28,7 @@ if [[ $# -eq 0 ]]; then
 fi
 
 if [[ "$1" != "--url" ]]; then
-    exec env MODEL_SET="$1" SKIP_NODES=1 bash "$HERE/provision.sh"
+    exec env MODEL_SET="$1" SKIP_NODES=1 SKIP_DEPS=1 bash "$HERE/provision.sh"
 fi
 
 # --- 任意 URL モード -------------------------------------------------------
