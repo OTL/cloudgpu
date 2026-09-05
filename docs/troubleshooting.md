@@ -197,12 +197,13 @@ nvidia-smi
 
 ```bash
 tmux attach -t llm          # Ctrl+B → N でウィンドウ切替、Ctrl+B → D で抜ける
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8188/
 curl -s http://127.0.0.1:11434/api/version
 ```
 
-- ローカルで 200 が返るのにブラウザで開けない → Pod の HTTP ポートに `8080` が
+- ローカルで 200 が返るのにブラウザで開けない → Pod の HTTP ポートに `8188` が
   登録されていない。`Edit Pod` で追加できるが**コンテナが作り直される**
+- ComfyUI が同じ Pod で動いていると 8188 がぶつかる。用途ごとに Pod を分けること
 - そもそも UI のウィンドウが無い → Open WebUI が入っていない
   （`ls /workspace/venv-webui/bin/open-webui`）。Python 3.11 未満の Pod だと
   provision-llm.sh は導入をスキップする。API だけで使うか、Pod を作り直す

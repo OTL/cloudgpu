@@ -9,7 +9,9 @@
 #   ui   open-webui serve  ChatGPT 風のブラウザ UI
 #
 # 環境変数:
-#   PORT          Open WebUI のポート (default: 8080)
+#   PORT          Open WebUI のポート (default: 8188)
+#                 ComfyUI と同じポートにしてあるので、Pod のテンプレートを使い回せる
+#                 （同じ Pod で両方同時には動かせない。用途ごとに Pod を分けること）
 #   OLLAMA_DIR    Ollama の展開先     (default: /workspace/ollama)
 #   OLLAMA_MODELS モデルの置き場       (default: /workspace/models/ollama)
 #   WEBUI_VENV    Open WebUI の venv  (default: /workspace/venv-webui)
@@ -19,7 +21,7 @@
 
 set -euo pipefail
 
-PORT="${PORT:-8080}"
+PORT="${PORT:-8188}"
 OLLAMA_DIR="${OLLAMA_DIR:-/workspace/ollama}"
 OLLAMA_MODELS="${OLLAMA_MODELS:-/workspace/models/ollama}"
 WEBUI_VENV="${WEBUI_VENV:-/workspace/venv-webui}"
@@ -150,10 +152,12 @@ main() {
     fi
     echo "  ログ  : tmux attach -t $SESSION   (ウィンドウ切替 Ctrl+B → N、抜けるのは Ctrl+B → D)"
     echo "  停止  : tmux kill-session -t $SESSION"
-    echo
-    echo "UI は初回起動に 1 分ほどかかる。RunPod の Pod に $PORT が HTTP ポートとして"
-    echo "登録されていないとプロキシ URL は開けない（Edit Pod で追加できるが、コンテナは"
-    echo "作り直しになる）。"
+    if have_webui; then
+        echo
+        echo "UI は初回起動に 1 分ほどかかる。既定の 8188 は ComfyUI と同じポートなので、"
+        echo "Pod のテンプレートを使い回すならそのままでよい（同じ Pod で ComfyUI が動いて"
+        echo "いる場合はぶつかるので、PORT=8080 などに変えて HTTP ポートを追加すること）。"
+    fi
 }
 
 main "$@"
