@@ -1,8 +1,14 @@
 # cloudgpu
 
-RunPod 上に「使うときだけ立ち上げる」画像生成環境（ComfyUI）を最小コストで構築するための
-手順書とプロビジョニングスクリプト。将来的にローカル LLM（vLLM / Ollama）も同じ
-Network Volume に相乗りさせる前提で構成している。
+RunPod 上に「使うときだけ立ち上げる」生成 AI 環境を最小コストで構築するための
+手順書とプロビジョニングスクリプト。
+
+- **画像生成**: ComfyUI（[docs/runpod-setup.md](docs/runpod-setup.md)）
+- **テキスト LLM**: Ollama + Open WebUI で ChatGPT 風のチャットと OpenAI 互換 API
+  （[docs/llm.md](docs/llm.md)）
+
+どちらも同じ Network Volume に相乗りさせる。ただし VRAM を食い合うので、
+実際には用途ごとに Pod を立てて Volume だけ共有する。
 
 ## 設計方針
 
@@ -45,6 +51,13 @@ Network Volume に相乗りさせる前提で構成している。
 4. 表示された `https://<pod-id>-8188.proxy.runpod.net` を開く
 5. 終わったら成果物を回収して **terminate**
 
+テキスト LLM を使いたい場合は別の Pod を立てて [docs/llm.md](docs/llm.md) の手順を踏む。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/OTL/cloudgpu/main/scripts/provision-llm.sh | bash
+/workspace/bin/llm
+```
+
 ## 短縮コマンド
 
 `provision.sh` を実行すると `/workspace/bin` に短い名前が置かれる。`/workspace` は
@@ -55,6 +68,9 @@ Network Volume なので Pod を作り直しても残る。
 | `/workspace/bin/comfy` | ComfyUI を起動 |
 | `/workspace/bin/comfy-models starter` | モデルを取得 |
 | `/workspace/bin/comfy-get <user@host>` | 生成物をローカルへ回収 |
+| `/workspace/bin/llm` | テキスト LLM（Ollama + Open WebUI）を起動 |
+| `/workspace/bin/llm-models starter` | LLM のモデルを取得 |
+| `/workspace/bin/llm-setup` | LLM 側の初回セットアップ |
 
 毎回このパスを打つのが面倒なら PATH を通す。
 
@@ -62,7 +78,8 @@ Network Volume なので Pod を作り直しても残る。
 . /workspace/bin/rc
 ```
 
-以降そのシェルでは `comfy` / `comfy-models` / `comfy-log` / `comfy-stop` だけで済む。
+以降そのシェルでは `comfy` / `comfy-models` / `comfy-log` / `comfy-stop`、
+LLM 側は `llm` / `llm-models` / `llm-log` / `llm-stop` だけで済む。
 `rc` はコンテナ側の PATH をいじるだけなので、Pod を編集・再生成したあとは
 読み込み直すこと（`/workspace/bin` の中身自体は残っている）。
 
@@ -78,7 +95,8 @@ curl -fsSL https://raw.githubusercontent.com/OTL/cloudgpu/main/scripts/provision
 | ファイル | 内容 |
 | --- | --- |
 | [docs/runpod-setup.md](docs/runpod-setup.md) | Network Volume と Pod の作成手順 |
-| [docs/models.md](docs/models.md) | 入れるモデルの選定とライセンス |
+| [docs/models.md](docs/models.md) | 画像モデルの選定とライセンス |
+| [docs/llm.md](docs/llm.md) | テキスト LLM（Ollama + Open WebUI）の導入と運用 |
 | [docs/cost-control.md](docs/cost-control.md) | 課金を抑えるための運用ルール |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | よくある詰まりどころ |
 
@@ -91,3 +109,6 @@ curl -fsSL https://raw.githubusercontent.com/OTL/cloudgpu/main/scripts/provision
 | [scripts/start-comfyui.sh](scripts/start-comfyui.sh) | ComfyUI の起動（DNS 補修、依存の確認、CORS 対応込み） |
 | [scripts/download-models.sh](scripts/download-models.sh) | モデルだけを個別に追加取得 |
 | [scripts/fetch-outputs.sh](scripts/fetch-outputs.sh) | 生成物をローカルへ回収 |
+| [scripts/provision-llm.sh](scripts/provision-llm.sh) | LLM 側の初回セットアップ（Ollama、Open WebUI、モデル取得） |
+| [scripts/start-llm.sh](scripts/start-llm.sh) | Ollama + Open WebUI の起動 |
+| [scripts/pull-llm-models.sh](scripts/pull-llm-models.sh) | LLM のモデルだけを個別に追加取得 |
