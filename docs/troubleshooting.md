@@ -219,6 +219,26 @@ mv /workspace/openwebui/webui.db /workspace/openwebui/webui.db.bak
 チャット履歴も一緒に消える。**プロキシ URL は Pod ID さえ分かれば誰でも叩ける**ので、
 `WEBUI_AUTH=False` で認証を切ったまま放置しないこと。
 
+## Ollama の tarball が `curl: (22) ... 404`
+
+Ollama の配布形式は途中で `.tgz` から `.tar.zst` に変わり、古い `.tgz` の URL は
+404 を返すようになった。`provision-llm.sh` は `.tar.zst` を先に見て、展開に必要な
+`zstd` が無ければ apt で入れる。それでも 404 になるなら手で確認する。
+
+```bash
+curl -sIL -o /dev/null -w '%{http_code}\n' https://ollama.com/download/ollama-linux-amd64.tar.zst
+```
+
+手で入れるなら（`/workspace` に置くのが要点。`/usr/local` はコンテナ再生成で消える）:
+
+```bash
+apt-get update && apt-get install -y zstd
+mkdir -p /workspace/ollama
+curl -fL https://ollama.com/download/ollama-linux-amd64.tar.zst \
+  | zstd -d | tar -xf - -C /workspace/ollama
+/workspace/ollama/bin/ollama --version
+```
+
 ## Pod を作り直したら ollama コマンドが無い
 
 `/usr/local/bin/ollama` はコンテナ側なので消える。このリポジトリの

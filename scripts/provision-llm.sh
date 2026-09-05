@@ -74,21 +74,52 @@ install_ollama() {
         return 0
     fi
 
-    local arch tgz
+    local arch
     case "$(uname -m)" in
         x86_64)  arch=amd64 ;;
         aarch64) arch=arm64 ;;
         *) die "未対応のアーキテクチャ: $(uname -m)" ;;
     esac
 
+    # 配布形式は途中で .tgz から .tar.zst に変わった（古い .tgz は 404 になる）。
+    # 新しい方を先に見て、無ければ .tgz に落ちる。
+    local base="https://ollama.com/download"
+    local url="" fmt=""
+    if curl -fsIL -o /dev/null "$base/ollama-linux-${arch}.tar.zst"; then
+        url="$base/ollama-linux-${arch}.tar.zst"; fmt=zst
+        ensure_zstd
+    elif curl -fsIL -o /dev/null "$base/ollama-linux-${arch}.tgz"; then
+        url="$base/ollama-linux-${arch}.tgz"; fmt=gz
+    else
+        die "Ollama の tarball が見つからない（$base/ollama-linux-${arch}.*）。配布形式が変わった可能性がある。"
+    fi
+
     log "Ollama を $OLLAMA_DIR に展開する（約 1.5GB、数分かかる）"
     mkdir -p "$OLLAMA_DIR"
-    tgz="$OLLAMA_DIR/ollama.tgz"
-    curl -fL --retry 3 --retry-delay 5 -C - \
-        -o "$tgz" "https://ollama.com/download/ollama-linux-${arch}.tgz"
-    tar -xzf "$tgz" -C "$OLLAMA_DIR"
-    rm -f "$tgz"
+    local archive="$OLLAMA_DIR/ollama.part"
+    rm -f "$archive"
+    curl -fL --retry 3 --retry-delay 5 -o "$archive" "$url"
+
+    if [[ "$fmt" == zst ]]; then
+        zstd -dc "$archive" | tar -xf - -C "$OLLAMA_DIR"
+    else
+        tar -xzf "$archive" -C "$OLLAMA_DIR"
+    fi
+    rm -f "$archive"
     [[ -x "$OLLAMA_BIN" ]] || die "展開したが $OLLAMA_BIN が無い。"
+}
+
+# .tar.zst の展開には zstd が要る。RunPod のイメージには入っていないことが多い。
+ensure_zstd() {
+    command -v zstd >/dev/null 2>&1 && return 0
+    log "zstd を導入する（.tar.zst の展開に必要）"
+    if command -v apt-get >/dev/null 2>&1; then
+        apt-get update -qq && apt-get install -y -qq zstd
+    elif command -v dnf >/dev/null 2>&1; then
+        dnf install -y -q zstd
+    fi
+    command -v zstd >/dev/null 2>&1 \
+        || die "zstd を入れられなかった。手動で入れてから再実行のこと（apt-get install -y zstd）。"
 }
 
 # --------------------------------------------------------------------------
