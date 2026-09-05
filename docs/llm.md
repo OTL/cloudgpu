@@ -26,7 +26,9 @@ VRAM が足りなくなるため。Network Volume は同じものを指定して
 
 1. Pod を作る（[runpod-setup.md](runpod-setup.md) の手順 2 と同じ。Template は
    PyTorch 系の素のもので構わない）
-2. **HTTP ポートに `8080` を追加しておく**。あとから足すとコンテナが作り直される
+2. HTTP ポートは ComfyUI と同じ **8188** をそのまま使う（Open WebUI の既定を
+   8188 にしてあるので、ポートを足す必要がない。足すとコンテナが作り直されるため
+   避けたい）。別のポートにしたければ `PORT=8080 /workspace/bin/llm` のように指定する
 3. web terminal で
 
    ```bash
@@ -42,7 +44,7 @@ VRAM が足りなくなるため。Network Volume は同じものを指定して
    /workspace/bin/llm
    ```
 
-5. 表示された `https://<pod-id>-8080.proxy.runpod.net` を開く
+5. 表示された `https://<pod-id>-8188.proxy.runpod.net` を開く
 
    **初回アクセスで作ったアカウントが管理者になる。** プロキシ URL は Pod ID さえ
    分かれば誰でも叩けるので、立ち上げたら自分が真っ先にアカウントを作ること。

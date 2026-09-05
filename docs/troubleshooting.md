@@ -197,12 +197,13 @@ nvidia-smi
 
 ```bash
 tmux attach -t llm          # Ctrl+B → N でウィンドウ切替、Ctrl+B → D で抜ける
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8188/
 curl -s http://127.0.0.1:11434/api/version
 ```
 
-- ローカルで 200 が返るのにブラウザで開けない → Pod の HTTP ポートに `8080` が
+- ローカルで 200 が返るのにブラウザで開けない → Pod の HTTP ポートに `8188` が
   登録されていない。`Edit Pod` で追加できるが**コンテナが作り直される**
+- ComfyUI が同じ Pod で動いていると 8188 がぶつかる。用途ごとに Pod を分けること
 - そもそも UI のウィンドウが無い → Open WebUI が入っていない
   （`ls /workspace/venv-webui/bin/open-webui`）。Python 3.11 未満の Pod だと
   provision-llm.sh は導入をスキップする。API だけで使うか、Pod を作り直す
@@ -218,6 +219,26 @@ mv /workspace/openwebui/webui.db /workspace/openwebui/webui.db.bak
 
 チャット履歴も一緒に消える。**プロキシ URL は Pod ID さえ分かれば誰でも叩ける**ので、
 `WEBUI_AUTH=False` で認証を切ったまま放置しないこと。
+
+## Ollama の tarball が `curl: (22) ... 404`
+
+Ollama の配布形式は途中で `.tgz` から `.tar.zst` に変わり、古い `.tgz` の URL は
+404 を返すようになった。`provision-llm.sh` は `.tar.zst` を先に見て、展開に必要な
+`zstd` が無ければ apt で入れる。それでも 404 になるなら手で確認する。
+
+```bash
+curl -sIL -o /dev/null -w '%{http_code}\n' https://ollama.com/download/ollama-linux-amd64.tar.zst
+```
+
+手で入れるなら（`/workspace` に置くのが要点。`/usr/local` はコンテナ再生成で消える）:
+
+```bash
+apt-get update && apt-get install -y zstd
+mkdir -p /workspace/ollama
+curl -fL https://ollama.com/download/ollama-linux-amd64.tar.zst \
+  | zstd -d | tar -xf - -C /workspace/ollama
+/workspace/ollama/bin/ollama --version
+```
 
 ## Pod を作り直したら ollama コマンドが無い
 
