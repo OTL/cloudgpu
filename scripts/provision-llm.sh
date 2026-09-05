@@ -15,7 +15,8 @@
 # 環境変数:
 #   OLLAMA_DIR      Ollama の展開先 (default: /workspace/ollama)
 #   OLLAMA_MODELS   モデルの置き場   (default: /workspace/models/ollama)
-#   LLM_MODEL_SET   starter | ja | coder | big | oss | all | none  (default: starter)
+#   LLM_MODEL_SET   starter | ja | coder | big | oss | uncensored | uncensored-big
+#                   | all | none  (default: starter)
 #   LLM_MODELS      任意のモデル名を空白区切りで（LLM_MODEL_SET より優先）
 #   WEBUI_VENV      Open WebUI の venv (default: /workspace/venv-webui)
 #   SKIP_WEBUI      1 にすると Open WebUI を入れない（API だけ使う場合）
@@ -169,8 +170,12 @@ models_for_set() {
         coder)   echo "qwen2.5-coder:14b" ;;
         big)     echo "qwen3:30b-a3b" ;;
         oss)     echo "gpt-oss:20b" ;;
+        # 拒否応答の調整を抜いたモデル（abliterated）。詳細と注意は docs/llm.md を参照。
+        uncensored)     echo "huihui_ai/qwen3-abliterated:8b" ;;
+        uncensored-big) echo "huihui_ai/qwen3-abliterated:30b-a3b" ;;
+        # all には uncensored 系を含めない（用途が違ううえ、まとめて落とすと重い）
         all)     echo "qwen3:8b qwen3:14b gemma3:12b qwen2.5-coder:14b qwen3:30b-a3b gpt-oss:20b" ;;
-        *) die "LLM_MODEL_SET が不正: $1 (starter|ja|coder|big|oss|all|none)" ;;
+        *) die "LLM_MODEL_SET が不正: $1 (starter|ja|coder|big|oss|uncensored|uncensored-big|all|none)" ;;
     esac
 }
 

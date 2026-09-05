@@ -16,7 +16,7 @@ HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 usage() {
     cat <<'USAGE'
 usage:
-  pull-llm-models.sh <starter|ja|coder|big|oss|all>
+  pull-llm-models.sh <starter|ja|coder|big|oss|uncensored|uncensored-big|all>
   pull-llm-models.sh --model <ollama のモデル名> [--model ...]
 
 セット:
@@ -25,6 +25,11 @@ usage:
   coder    qwen2.5-coder:14b                 コード用
   big      qwen3:30b-a3b                     MoE。24GB でも速い
   oss      gpt-oss:20b                       Apache-2.0
+
+  uncensored      huihui_ai/qwen3-abliterated:8b       拒否応答を抜いた版。16GB VRAM 以上
+  uncensored-big  huihui_ai/qwen3-abliterated:30b-a3b  同上の MoE 版。24GB VRAM 向け
+
+  all は uncensored 系を含まない（用途が違ううえ、まとめて落とすと重い）。
 USAGE
 }
 
