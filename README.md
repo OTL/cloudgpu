@@ -39,11 +39,32 @@ Network Volume に相乗りさせる前提で構成している。
 3. Pod の web terminal で起動する
 
    ```bash
-   bash /workspace/cloudgpu/scripts/start-comfyui.sh
+   /workspace/bin/comfy
    ```
 
 4. 表示された `https://<pod-id>-8188.proxy.runpod.net` を開く
 5. 終わったら成果物を回収して **terminate**
+
+## 短縮コマンド
+
+`provision.sh` を実行すると `/workspace/bin` に短い名前が置かれる。`/workspace` は
+Network Volume なので Pod を作り直しても残る。
+
+| コマンド | 内容 |
+| --- | --- |
+| `/workspace/bin/comfy` | ComfyUI を起動 |
+| `/workspace/bin/comfy-models starter` | モデルを取得 |
+| `/workspace/bin/comfy-get <user@host>` | 生成物をローカルへ回収 |
+
+毎回このパスを打つのが面倒なら PATH を通す。
+
+```bash
+. /workspace/bin/rc
+```
+
+以降そのシェルでは `comfy` / `comfy-models` / `comfy-log` / `comfy-stop` だけで済む。
+`rc` はコンテナ側の PATH をいじるだけなので、Pod を編集・再生成したあとは
+読み込み直すこと（`/workspace/bin` の中身自体は残っている）。
 
 テンプレートが `PROVISIONING_SCRIPT` に対応していない場合は、Pod の web terminal で
 直接叩いてもよい。
@@ -66,6 +87,7 @@ curl -fsSL https://raw.githubusercontent.com/OTL/cloudgpu/main/scripts/provision
 | ファイル | 内容 |
 | --- | --- |
 | [scripts/provision.sh](scripts/provision.sh) | 初回セットアップ（venv、カスタムノード、モデル取得） |
+| [scripts/bootstrap.sh](scripts/bootstrap.sh) | `/workspace/bin` に短縮コマンドを置く（provision.sh から自動実行） |
 | [scripts/start-comfyui.sh](scripts/start-comfyui.sh) | ComfyUI の起動（DNS 補修、依存の確認、CORS 対応込み） |
 | [scripts/download-models.sh](scripts/download-models.sh) | モデルだけを個別に追加取得 |
 | [scripts/fetch-outputs.sh](scripts/fetch-outputs.sh) | 生成物をローカルへ回収 |

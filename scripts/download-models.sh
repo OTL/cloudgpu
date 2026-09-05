@@ -12,7 +12,8 @@
 
 set -euo pipefail
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# symlink（/workspace/bin/comfy-models）から呼ばれても実体の隣を指すようにする
+HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 usage() {
     cat <<'USAGE'

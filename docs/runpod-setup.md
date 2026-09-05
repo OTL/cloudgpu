@@ -57,8 +57,11 @@ curl -fsSL https://raw.githubusercontent.com/OTL/cloudgpu/main/scripts/provision
 `provision.sh` は導入までしか行わない。起動は起動スクリプトから行う。
 
 ```bash
-bash /workspace/cloudgpu/scripts/start-comfyui.sh
+/workspace/bin/comfy
 ```
+
+（`provision.sh` が `/workspace/bin` に置いた短縮コマンド。PATH を通したければ
+`. /workspace/bin/rc` を叩くと、以降そのシェルでは `comfy` だけで動く）
 
 tmux セッション `comfy` の中で立ち上がり、接続先の URL が表示される。
 `https://<pod-id>-8188.proxy.runpod.net` の形になる。ログを見るなら
@@ -93,9 +96,9 @@ tmux セッション `comfy` の中で立ち上がり、接続先の URL が表�
 回収したら Pod を **Terminate**。Stop ではない。理由は
 [cost-control.md](cost-control.md) を参照。
 
-`/workspace` 配下（モデル、venv、カスタムノード、ワークフロー JSON）は Network Volume
-に残るので、次回は同じ Volume を指定して Pod を作り直し、`start-comfyui.sh` を叩けば
-そのまま再開できる。
+`/workspace` 配下（モデル、venv、カスタムノード、ワークフロー JSON、`bin/`）は
+Network Volume に残るので、次回は同じ Volume を指定して Pod を作り直し、
+`/workspace/bin/comfy` を叩けばそのまま再開できる。
 
 ## 注意: Edit Pod はコンテナを作り直す
 
