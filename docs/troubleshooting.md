@@ -120,6 +120,23 @@ apt-get update && apt-get install -y aria2
 途中で切れても provision.sh は `.part` に落としてから mv しているので、
 再実行すれば続きから取得する。
 
+## CivitAI から落としたファイルが読み込めない
+
+`CIVITAI_TOKEN` を渡していないと、safetensors ではなくログインページの HTML が
+数 KB 落ちてくる。拡張子は `.safetensors` のままなので気付きにくい。
+
+```bash
+ls -lh /workspace/ComfyUI/models/checkpoints
+head -c 100 <疑わしいファイル>
+```
+
+数 GB あるはずのファイルが数 KB なら中身は HTML。消して、CivitAI のアカウント設定で
+作った API キーを渡して取り直す。
+
+```bash
+CIVITAI_TOKEN=xxxx ./scripts/download-models.sh --url "<URL>" --dir checkpoints --name x.safetensors
+```
+
 ## 401 / 403 でモデルが落ちてこない
 
 gated リポジトリ。Hugging Face の該当ページで規約に同意し、`HF_TOKEN` を設定する。
