@@ -12,8 +12,10 @@
 #   COMFYUI_DIR   ComfyUI のパス（未設定なら自動検出）
 #   VENV_DIR      venv のパス (default: /workspace/venv)
 #   SKIP_DEPS     1 にすると venv の作成と依存の導入をスキップ
-#   MODEL_SET     starter | sdxl | flux-dev | all | none   (default: starter)
+#   MODEL_SET     starter | sdxl | flux-dev | uncensored | pony | all | none
+#                 (default: starter)
 #   HF_TOKEN      Hugging Face のトークン（gated モデルを取る場合のみ）
+#   CIVITAI_TOKEN CivitAI のトークン（--url で CivitAI から取る場合のみ）
 #   SKIP_NODES    1 にするとカスタムノードの導入をスキップ
 
 set -euo pipefail
@@ -149,6 +151,10 @@ fetch() {
     local -a auth=()
     if [[ -n "${HF_TOKEN:-}" && "$url" == *huggingface.co* ]]; then
         auth=("Authorization: Bearer ${HF_TOKEN}")
+    elif [[ -n "${CIVITAI_TOKEN:-}" && "$url" == *civitai.com* ]]; then
+        # CivitAI は 2024 年以降ログイン必須になった。トークンが無いと HTML が
+        # 落ちてきて safetensors のふりをするので、ファイルサイズで気付くこと。
+        auth=("Authorization: Bearer ${CIVITAI_TOKEN}")
     fi
 
     # 途中で失敗しても中途半端なファイルを残さないよう .part に落としてから mv
@@ -221,14 +227,38 @@ models_flux_dev() {
         "$MODELS_DIR/checkpoints" "flux1-dev-fp8.safetensors"
 }
 
+# --------------------------------------------------------------------------
+# 検閲のかかっていないモデル（NSFW も出せるコミュニティ製 SDXL 系）
+#
+# 素の SDXL / FLUX は露骨な表現を出しにくいよう学習されている。それを外した
+# 追加学習モデルがコミュニティにあり、いずれも SDXL 系なので既存のワークフローが
+# そのまま使える。プロンプトの書き方に癖があるので docs/models.md を読むこと。
+# --------------------------------------------------------------------------
+models_uncensored() {
+    fetch "$HF/OnomaAIResearch/Illustrious-XL-v1.0/resolve/main/Illustrious-XL-v1.0.safetensors" \
+        "$MODELS_DIR/checkpoints" "Illustrious-XL-v1.0.safetensors"
+    fetch "$HF/madebyollin/sdxl-vae-fp16-fix/resolve/main/sdxl_vae.safetensors" \
+        "$MODELS_DIR/vae" "sdxl_vae_fp16_fix.safetensors"
+}
+
+models_pony() {
+    fetch "$HF/LyliaEngine/Pony_Diffusion_V6_XL/resolve/main/ponyDiffusionV6XL_v6StartWithThisOne.safetensors" \
+        "$MODELS_DIR/checkpoints" "ponyDiffusionV6XL.safetensors"
+    fetch "$HF/madebyollin/sdxl-vae-fp16-fix/resolve/main/sdxl_vae.safetensors" \
+        "$MODELS_DIR/vae" "sdxl_vae_fp16_fix.safetensors"
+}
+
 download_models() {
     case "$MODEL_SET" in
-        none)     log "MODEL_SET=none: モデル取得をスキップ" ;;
-        starter)  models_starter ;;
-        sdxl)     models_sdxl ;;
-        flux-dev) models_flux_dev ;;
-        all)      models_starter; models_sdxl; models_flux_dev ;;
-        *)        die "MODEL_SET が不正: $MODEL_SET (starter|sdxl|flux-dev|all|none)" ;;
+        none)       log "MODEL_SET=none: モデル取得をスキップ" ;;
+        starter)    models_starter ;;
+        sdxl)       models_sdxl ;;
+        flux-dev)   models_flux_dev ;;
+        uncensored) models_uncensored ;;
+        pony)       models_pony ;;
+        # all に uncensored 系は含めない（用途が違ううえ、まとめて落とすと重い）
+        all)        models_starter; models_sdxl; models_flux_dev ;;
+        *)          die "MODEL_SET が不正: $MODEL_SET (starter|sdxl|flux-dev|uncensored|pony|all|none)" ;;
     esac
 }
 

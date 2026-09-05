@@ -5,6 +5,7 @@
 #
 #   ./download-models.sh sdxl
 #   ./download-models.sh flux-dev
+#   ./download-models.sh uncensored
 #   HF_TOKEN=hf_xxx ./download-models.sh flux-dev
 #
 # 任意の URL を直接指定することもできる:
@@ -18,8 +19,18 @@ HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 usage() {
     cat <<'USAGE'
 usage:
-  download-models.sh <starter|sdxl|flux-dev|all>
+  download-models.sh <starter|sdxl|flux-dev|uncensored|pony|all>
   download-models.sh --url <URL> --dir <models 配下のサブディレクトリ> --name <ファイル名>
+
+セット:
+  starter     FLUX.1-schnell fp8 + RealESRGAN     まずこれ
+  sdxl        SDXL base 1.0 + VAE                 LoRA / ControlNet の資産が多い
+  flux-dev    FLUX.1-dev fp8                      品質重視。商用不可
+  uncensored  Illustrious-XL v1.0 + VAE           検閲なし（NSFW 可）。SDXL 系
+  pony        Pony Diffusion V6 XL + VAE          同上。LoRA の資産が多い
+
+  all は uncensored / pony を含まない。
+  CivitAI から取るときは CIVITAI_TOKEN を設定して --url を使う。
 USAGE
 }
 
@@ -29,6 +40,9 @@ if [[ $# -eq 0 ]]; then
 fi
 
 if [[ "$1" != "--url" ]]; then
+    case "$1" in
+        -h|--help) usage; exit 0 ;;
+    esac
     exec env MODEL_SET="$1" SKIP_NODES=1 SKIP_DEPS=1 bash "$HERE/provision.sh"
 fi
 
@@ -59,6 +73,8 @@ fi
 declare -a auth=()
 if [[ -n "${HF_TOKEN:-}" && "$url" == *huggingface.co* ]]; then
     auth=("Authorization: Bearer ${HF_TOKEN}")
+elif [[ -n "${CIVITAI_TOKEN:-}" && "$url" == *civitai.com* ]]; then
+    auth=("Authorization: Bearer ${CIVITAI_TOKEN}")
 fi
 
 if command -v aria2c >/dev/null 2>&1; then
