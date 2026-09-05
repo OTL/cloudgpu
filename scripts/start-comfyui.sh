@@ -16,6 +16,7 @@
 #   VENV_DIR      venv のパス   (default: /workspace/venv)
 #   FOREGROUND    1 にすると tmux を使わず前面で実行
 #   REINSTALL     1 にすると venv の依存を入れ直す
+#   SELF_UPDATE   0 にすると起動前の git pull をスキップ
 
 set -euo pipefail
 
@@ -24,11 +25,45 @@ COMFYUI_DIR="${COMFYUI_DIR:-/workspace/ComfyUI}"
 VENV_DIR="${VENV_DIR:-/workspace/venv}"
 FOREGROUND="${FOREGROUND:-0}"
 REINSTALL="${REINSTALL:-0}"
+SELF_UPDATE="${SELF_UPDATE:-1}"
 SESSION=comfy
+
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+REPO_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
 
 log() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m[warn] %s\033[0m\n' "$*" >&2; }
 die() { printf '\033[1;31m[error] %s\033[0m\n' "$*" >&2; exit 1; }
+
+# --------------------------------------------------------------------------
+# 自己更新
+#
+# Pod を作り直すたびに手で git pull して bootstrap し直すのが面倒なので、起動前に
+# ここでやる。スクリプト自身が書き換わった場合、bash は実行中のファイルを
+# 読み進めるため途中から別の内容を読んでしまう。更新されたら exec で入り直す。
+# --------------------------------------------------------------------------
+self_update() {
+    [[ "$SELF_UPDATE" == "1" ]] || return 0
+    [[ -d "$REPO_DIR/.git" ]] || return 0
+
+    local before after
+    before="$(cksum < "$SELF")"
+
+    if ! git -C "$REPO_DIR" pull --ff-only --quiet 2>/dev/null; then
+        warn "git pull に失敗した（オフライン / ローカル変更あり）。今あるもので起動する。"
+        return 0
+    fi
+
+    # 短縮コマンドの追加・改名に追従する
+    [[ -x "$REPO_DIR/scripts/bootstrap.sh" ]] \
+        && bash "$REPO_DIR/scripts/bootstrap.sh" >/dev/null 2>&1
+
+    after="$(cksum < "$SELF")"
+    if [[ "$before" != "$after" ]]; then
+        log "起動スクリプトが更新された。読み込み直す。"
+        SELF_UPDATE=0 exec bash "$SELF" "$@"
+    fi
+}
 
 # --------------------------------------------------------------------------
 # DNS
@@ -115,6 +150,7 @@ build_command() {
 
 main() {
     ensure_dns
+    self_update "$@"
     ensure_venv
 
     local cmd
