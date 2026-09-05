@@ -50,8 +50,11 @@
 Hugging Face の gated モデル（black-forest-labs 本家など）は、HF 側で利用規約に
 同意したうえで `HF_TOKEN` を渡す。
 
-## 将来: LLM を同居させる
+## テキスト LLM
 
-同じ Network Volume に `/workspace/models/llm` を掘って、vLLM か Ollama を入れる。
-画像生成と同時に動かすと VRAM が足りないので、実際には
-「画像生成の Pod」と「LLM の Pod」を用途ごとに立て、Volume を共有する形になる。
+このページは画像モデルの話。ChatGPT 的なテキスト LLM は Ollama を
+`/workspace/ollama`、モデルを `/workspace/models/ollama` に置いて同じ Network Volume に
+相乗りさせている。モデル選定と VRAM の目安は [llm.md](llm.md) を参照。
+
+画像生成と同時に動かすと VRAM を食い合うので、「画像生成の Pod」と「LLM の Pod」を
+用途ごとに立て、Volume だけ共有する。

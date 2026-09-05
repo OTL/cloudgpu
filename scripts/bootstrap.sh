@@ -7,7 +7,8 @@
 # 以降はこれで済む:
 #
 #   /workspace/bin/comfy            ComfyUI を起動
-#   . /workspace/bin/rc             PATH を通す。以降は comfy だけで動く
+#   /workspace/bin/llm              テキスト LLM を起動
+#   . /workspace/bin/rc             PATH を通す。以降は comfy / llm だけで動く
 #
 # /workspace は Network Volume なので、Pod を作り直しても消えない。
 # 消えるのはコンテナ側（PATH と ~/.bashrc）だけなので、再生成のあとに
@@ -33,12 +34,18 @@ link comfy-models download-models.sh
 link comfy-setup  provision.sh
 link comfy-get    fetch-outputs.sh
 
+link llm          start-llm.sh
+link llm-models   pull-llm-models.sh
+link llm-setup    provision-llm.sh
+
 cat > "$BIN_DIR/rc" <<'RC'
 # . /workspace/bin/rc
 # コンテナが作り直されるたびに読み込み直すこと。
 export PATH="/workspace/bin:$PATH"
 alias comfy-log='tmux attach -t comfy'
 alias comfy-stop='tmux kill-session -t comfy'
+alias llm-log='tmux attach -t llm'
+alias llm-stop='tmux kill-session -t llm'
 cd /workspace
 RC
 log "$BIN_DIR/rc"
@@ -54,6 +61,11 @@ cat <<MSG
     comfy-models starter          モデル取得
     comfy-log                     ログを見る (抜けるのは Ctrl+B -> D)
     comfy-stop                    停止
+
+    llm                           テキスト LLM (Ollama + Open WebUI) を起動
+    llm-models starter            LLM のモデル取得
+    llm-log                       ログを見る (ウィンドウ切替は Ctrl+B -> N)
+    llm-stop                      停止
 
 コンテナを作り直したあとは rc を読み込み直すこと。
 MSG

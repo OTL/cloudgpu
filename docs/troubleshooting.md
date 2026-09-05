@@ -168,3 +168,78 @@ Hugging Face 側でリポジトリ名やファイル名が変わることがあ�
 ```
 
 恒久的に直す場合は `scripts/provision.sh` の `models_*` 関数を書き換える。
+
+---
+
+以下はテキスト LLM（Ollama + Open WebUI）側。詳細は [llm.md](llm.md) を参照。
+
+## LLM の返事が異様に遅い（数 tok/s）
+
+VRAM に載り切らず CPU に溢れている。
+
+```bash
+nvidia-smi
+/workspace/ollama/bin/ollama ps
+```
+
+`ollama ps` の PROCESSOR 列に `100% GPU` 以外（`CPU` や `x%/y% CPU/GPU`）が出ていたら
+これに該当する。小さいモデルか、より量子化の強いタグに落とす。
+
+```bash
+/workspace/bin/llm-models --model qwen3:8b
+```
+
+`nvidia-smi` 自体が無い / GPU が見えない場合は CPU only の Pod を引いている。
+
+## Open WebUI が起動しない・ブラウザで開けない
+
+順に切り分ける。
+
+```bash
+tmux attach -t llm          # Ctrl+B → N でウィンドウ切替、Ctrl+B → D で抜ける
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/
+curl -s http://127.0.0.1:11434/api/version
+```
+
+- ローカルで 200 が返るのにブラウザで開けない → Pod の HTTP ポートに `8080` が
+  登録されていない。`Edit Pod` で追加できるが**コンテナが作り直される**
+- そもそも UI のウィンドウが無い → Open WebUI が入っていない
+  （`ls /workspace/venv-webui/bin/open-webui`）。Python 3.11 未満の Pod だと
+  provision-llm.sh は導入をスキップする。API だけで使うか、Pod を作り直す
+- 初回起動は 1 分ほどかかる。真っ白でも少し待つ
+
+## Open WebUI にログインできない / パスワードを忘れた
+
+アカウントは `/workspace/openwebui/webui.db` に入っている。作り直すなら:
+
+```bash
+mv /workspace/openwebui/webui.db /workspace/openwebui/webui.db.bak
+```
+
+チャット履歴も一緒に消える。**プロキシ URL は Pod ID さえ分かれば誰でも叩ける**ので、
+`WEBUI_AUTH=False` で認証を切ったまま放置しないこと。
+
+## Pod を作り直したら ollama コマンドが無い
+
+`/usr/local/bin/ollama` はコンテナ側なので消える。このリポジトリの
+provision-llm.sh は `/workspace/ollama`（Network Volume）に展開しているので、
+そちらを直接叩く。
+
+```bash
+/workspace/ollama/bin/ollama list
+. /workspace/bin/rc     # PATH を通せば llm / llm-models で済む
+```
+
+## `Error: model requires more system memory than is available`
+
+`OLLAMA_MODELS` が Volume を指していないと、コンテナディスク（20GB 程度）を
+食い潰して落ちることもある。確認:
+
+```bash
+echo "$OLLAMA_MODELS"
+du -sh /workspace/models/ollama
+df -h /workspace /
+```
+
+`start-llm.sh` 経由で起動していれば `/workspace/models/ollama` が設定される。
+手で `ollama serve` を叩くとコンテナ側の `~/.ollama` に落ちるので注意。

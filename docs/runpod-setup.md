@@ -100,6 +100,14 @@ tmux セッション `comfy` の中で立ち上がり、接続先の URL が表�
 Network Volume に残るので、次回は同じ Volume を指定して Pod を作り直し、
 `/workspace/bin/comfy` を叩けばそのまま再開できる。
 
+## 6. テキスト LLM を使う場合
+
+ChatGPT 的なチャットは別の Pod に立てる（画像生成と VRAM を食い合うため）。
+Network Volume は同じものを指定してよい。手順は [llm.md](llm.md) を参照。
+
+Pod 作成時に **HTTP ポートへ `8080` を追加しておくこと**。あとから足すと
+コンテナが作り直される。
+
 ## 注意: Edit Pod はコンテナを作り直す
 
 ポートや環境変数を変更して保存すると、**コンテナが作り直される**。`/workspace` は
