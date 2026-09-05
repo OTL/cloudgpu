@@ -45,15 +45,51 @@ SDXL 系なので既存のワークフローや ControlNet がそのまま使え
 `all` には含めていない（用途が違ううえ、まとめて落とすと重いため）。ComfyUI 側に
 出力フィルタの類は無いので、モデルを差し替えれば挙動もそのまま変わる。
 
+### 使い方（ノードは自分でつながなくてよい）
+
+設定済みのワークフローを [`workflows/`](../workflows) に置いてある。`provision.sh` を
+リポジトリから実行すると ComfyUI のワークフロー置き場に自動でコピーされるので、
+UI 側の操作はこれだけ。
+
+1. 左のサイドバーの **Workflows**（フォルダのアイコン）を開く
+2. `illustrious`（または `pony`）を選ぶ
+3. **「2. 出したいもの」**のテキスト欄を書き換えて `Queue Prompt`
+
+モデル名・CLIP skip・steps・CFG・画像サイズは設定済み。触るのはプロンプトだけでよい。
+
+サイドバーに出てこないときは、GitHub から JSON を落として ComfyUI の画面に
+**ドラッグ&ドロップ**しても同じことができる。
+
+古い Pod で `provision.sh` を実行済みの場合は、コピーだけやり直せばよい。
+
+```bash
+cd /workspace/cloudgpu && git pull && ./scripts/provision.sh
+```
+
+（モデルが既にあれば取得はスキップされる）
+
 ### プロンプトの癖
 
 FLUX や SDXL base のつもりで自然文を書いても出ない。**どちらもタグベース**。
 
-- **Illustrious**: danbooru タグを並べる。`masterpiece, best quality, 1girl, ...`。
-  steps 28–30、CFG 5–7、解像度 1024x1024 前後
+- **Illustrious**: danbooru タグを並べる。`masterpiece, best quality, 1girl, ...`
 - **Pony V6**: 先頭に `score_9, score_8_up, score_7_up` を付けるのが前提。
-  付けないと極端に品質が落ちる。CLIP skip 2、CFG 7 前後
-- どちらもネガティブに `worst quality, low quality` 系を入れる
+  付けないと極端に品質が落ちる
+- どちらもネガティブに `worst quality, low quality` 系を入れる（ワークフローには
+  入れてある）
+
+タグの語彙は danbooru のもの。`1girl` `solo` `looking at viewer` `upper body`
+`simple background` のような定型タグが効く。
+
+用意したワークフローの設定値（自分で組む場合の参考）:
+
+| | Illustrious | Pony V6 |
+| --- | --- | --- |
+| steps | 30 | 28 |
+| CFG | 6.0 | 7.0 |
+| sampler / scheduler | dpmpp_2m / karras | dpmpp_2m / karras |
+| CLIP skip | -2 | -2 |
+| 解像度 | 1024x1024 | 1024x1024 |
 
 ### 他のモデルを足す
 

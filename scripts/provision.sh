@@ -263,6 +263,30 @@ download_models() {
 }
 
 # --------------------------------------------------------------------------
+# 出来合いのワークフロー
+#
+# ノードを自分でつなぐのは面倒なので、設定済みの JSON を ComfyUI のユーザー
+# ワークフロー置き場にコピーする。UI のサイドバー（Workflows）から選べるようになる。
+# 既にあるものは上書きしない（触ったものを消さないため）。
+# --------------------------------------------------------------------------
+install_workflows() {
+    local src="$1" dest="$COMFYUI_DIR/user/default/workflows"
+    [[ -d "$src" ]] || return 0
+    mkdir -p "$dest"
+    local f name
+    for f in "$src"/*.json; do
+        [[ -e "$f" ]] || continue
+        name="$(basename "$f")"
+        if [[ -e "$dest/$name" ]]; then
+            log "skip (既にある): workflow $name"
+            continue
+        fi
+        cp "$f" "$dest/$name"
+        log "workflow: $name"
+    done
+}
+
+# --------------------------------------------------------------------------
 main() {
     if [[ "$SKIP_NODES" == "1" ]]; then
         log "SKIP_NODES=1: カスタムノードをスキップ"
@@ -272,10 +296,11 @@ main() {
 
     download_models
 
-    # リポジトリを clone して実行した場合は短いコマンド名も置いていく
+    # リポジトリを clone して実行した場合は短いコマンド名とワークフローも置いていく
     if [[ -n "$SELF_DIR" && -x "$SELF_DIR/bootstrap.sh" ]]; then
         bash "$SELF_DIR/bootstrap.sh" >/dev/null
         log "短縮コマンドを /workspace/bin に置いた"
+        install_workflows "$SELF_DIR/../workflows"
     fi
 
     log "完了"

@@ -100,6 +100,17 @@ curl -fsSL https://raw.githubusercontent.com/OTL/cloudgpu/main/scripts/provision
 | [docs/cost-control.md](docs/cost-control.md) | 課金を抑えるための運用ルール |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | よくある詰まりどころ |
 
+## ワークフロー
+
+[workflows/](workflows) に設定済みの ComfyUI ワークフローを置いてある。`provision.sh`
+実行時に ComfyUI 側へコピーされるので、UI のサイドバー（Workflows）から選んで
+プロンプトを書き換えるだけで生成できる。
+
+| ファイル | 内容 |
+| --- | --- |
+| [workflows/illustrious.json](workflows/illustrious.json) | Illustrious-XL v1.0 用（`MODEL_SET=uncensored`） |
+| [workflows/pony.json](workflows/pony.json) | Pony Diffusion V6 XL 用（`MODEL_SET=pony`） |
+
 ## スクリプト
 
 | ファイル | 内容 |
