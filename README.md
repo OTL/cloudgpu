@@ -56,6 +56,10 @@ Network Volume なので Pod を作り直しても残る。
 | `/workspace/bin/comfy-models starter` | モデルを取得 |
 | `/workspace/bin/comfy-get <user@host>` | 生成物をローカルへ回収 |
 
+`comfy` は起動前に自分でリポジトリを `git pull` して `bootstrap.sh` を回すので、
+スクリプトを更新したあとに手で pull し直す必要はない。オフラインや衝突で pull に
+失敗した場合は警告を出して、手元にあるもので起動する（`SELF_UPDATE=0` で無効化）。
+
 毎回このパスを打つのが面倒なら PATH を通す。
 
 ```bash

@@ -74,6 +74,8 @@ tmux セッション `comfy` の中で立ち上がり、接続先の URL が表�
 | DNS が壊れて上がる | `Temporary failure in name resolution` | `/etc/resolv.conf` を補修 |
 | コンテナ再生成で依存が消える | `ModuleNotFoundError: No module named 'sqlalchemy'` | venv を `/workspace/venv` に置く |
 | ComfyUI の CSRF 対策 | ブラウザで **403** | `--enable-cors-header` を付けて起動 |
+| Pod ID が変わる | 古い URL のオリジンでは 403 のまま | `RUNPOD_POD_ID` から URL を組み立てる |
+| スクリプトが古い | 直したはずの問題を踏み直す | 起動前に `git pull` して bootstrap し直す |
 
 > 新しく落としたモデルがドロップダウンに出ないときは、ComfyUI を再起動するか、
 > ブラウザで `R` キー（Refresh Node Definitions）を押す。
