@@ -86,6 +86,10 @@ tmux セッション `comfy` の中で立ち上がり、接続先の URL が表�
    絵が崩れるので必ず変える
 4. `Queue Prompt`
 
+`MODEL_SET=uncensored` / `pony` を使う場合は、サイドバーの `Workflows` から
+設定済みのものを開くだけでよい（[models.md](models.md) を参照）。ノードを自分で
+つなぐ必要はない。
+
 ## 5. 終了時（重要）
 
 ```bash
